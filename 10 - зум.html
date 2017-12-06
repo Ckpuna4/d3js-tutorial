@@ -1,0 +1,200 @@
+<!-- Добавим zoom-->
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>График</title>
+	<meta charset='utf-8'>
+	<style>
+		.chart {
+			background-color: #222;
+		}
+
+		.tick > text {
+			fill: #919191;
+		}
+
+		.tick > line {
+			stroke: #404040;
+			font-size: pixrem(11);
+		}
+
+		path.domain {
+			stroke: #404040;
+		}
+
+		.axis path {
+			stroke-width: 0;
+		}
+
+		.line1 {
+			fill: none;
+			stroke: #dcc209;
+			stroke-width: 2px;
+		}
+
+		.line2 {
+			fill: none;
+			stroke: #8763ff;
+			stroke-width: 2px;
+		}
+
+		.line3 {
+			fill: none;
+			stroke: #5ff313;
+			stroke-width: 2px;
+		}
+
+		.circle1 {
+			fill: #dcc209;
+			stroke: #222;
+		}
+
+		.circle2 {
+			fill: #8763ff;
+			stroke: #222;
+		}
+
+		.circle3 {
+			fill: #5ff313;
+			stroke: #222;
+		}
+
+		.change-domain {
+			padding: 20px;
+		}
+		.change-domain button {
+			width: 130px;
+			padding: 20px;
+			font-size: 16px;
+			font-weight: bold;
+		}
+
+		.line1, .line2, .line3, .circle1, .circle2, .circle3 {
+			clip-path: url(#clip);
+		}
+
+		.zoom {
+			cursor: move;
+			fill: none;
+			pointer-events: all;
+		}
+	</style>
+</head>
+<body>
+<div id="chart"></div>
+<script src='https://d3js.org/d3.v4.min.js'></script>
+<script>
+	'use strict';
+
+	const margin = {top: 20, right: 20, bottom: 30, left: 50};
+	const width = 960 - margin.left - margin.right;
+	const height = 500 - margin.top - margin.bottom;
+
+
+	const xScale = d3.scaleLinear().range([0, width]);
+	const xScale2 = xScale.copy(); // Новое
+	const yScale = d3.scaleLinear().range([height, 0]);
+
+	const valueLines = [1,2,3].map((numb) => {
+		const propertyName = 'property' + numb;
+		return d3.line()
+			.x(function(d) {return xScale(d.index);})
+			.y(function(d) {return yScale(d[propertyName]);});
+	})
+
+	const svg = d3.select('div#chart').append('svg')
+		.attr('class', 'chart')
+		.attr('width', width + margin.left + margin.right)
+		.attr('height', height + margin.top + margin.bottom)
+		.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+	svg.append('defs').append('clipPath')
+		.attr('id', 'clip')
+		.append('rect')
+		.attr('width', width)
+		.attr('height', height);
+
+	/**
+	 * Возвращает случайное целое число между min (включительно) и max (не включая max)
+	 * @param {Number} min Минимальное число
+	 * @param {Number} max Максимальное число
+	 * @returns {Number}
+	 */
+	function rand(min, max) {
+		return Math.floor(Math.random() * (max - min)) + min;
+	}
+
+	const MAX_VALUE = 150;
+	const data = [];
+	for(let i = 0; i < MAX_VALUE; i++) {
+		data[i] = {
+			index: i,
+			property1: rand(70, 100),
+			property2: rand(40, 65),
+			property3: rand(5, 35)
+		};
+	}
+
+	xScale.domain([0, MAX_VALUE]);
+	xScale2.domain(xScale.domain()); // Новое
+	yScale.domain([0, d3.max(data, function(d) {return d.property1;})]);
+
+	const xAxis = d3.axisBottom(xScale);
+	svg.append('g')
+		.attr('class', 'axis axis__x')
+		.attr('transform', 'translate(0,' + height + ')')
+		.call(xAxis);
+
+	svg.append('g')
+		.attr('class', 'axis axis__y')
+		.call(d3.axisLeft(yScale)
+			.tickSize(-width)
+		);
+
+	// Добавим линии и точки на svg
+	valueLines.forEach((line, index) => {
+		const lineNumber = index + 1;
+		const propertyName = 'property' + lineNumber;
+
+		svg.append('path')
+			.data([data])
+			.attr('class', 'line' + lineNumber)
+			.attr('d', line);
+
+		svg.selectAll('dot')
+			.data(data)
+			.enter().append('circle')
+			.attr('class', 'circle' + lineNumber)
+			.attr('r', 3)
+			.attr('cx', function(d) {return xScale(d.index);})
+			.attr('cy', function(d) {return yScale(d[propertyName]);});
+	});
+
+	const zoom = d3.zoom()
+		.scaleExtent([1, 32])
+		.translateExtent([[0, 0], [width, height]])
+		.extent([[0, 0], [width, height]])
+		.on('zoom', zoomed);
+
+	svg.append('rect')
+		.attr('class', 'zoom')
+		.attr('width', width)
+		.attr('height', height)
+		.call(zoom);
+
+	function zoomed() {
+		const t = d3.event.transform; // Новое
+		xScale.domain(t.rescaleX(xScale2).domain()); // Новое
+		valueLines.forEach((line, index) => {
+			const lineNumber = index + 1;
+			svg.select('.line' + lineNumber).attr('d', line);
+			const dots = svg.selectAll('.circle' + lineNumber).data(data);
+			dots.attr('cx', function(d) {return xScale(d.index);})
+		});
+		svg.select('.axis__x').call(xAxis);
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!-- Добавим clipPath-->
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>График</title>
+	<meta charset='utf-8'>
+	<style>
+		.chart {
+			background-color: #222;
+		}
+
+		.tick > text {
+			fill: #919191;
+		}
+
+		.tick > line {
+			stroke: #404040;
+			font-size: pixrem(11);
+		}
+
+		path.domain {
+			stroke: #404040;
+		}
+
+		.axis path {
+			stroke-width: 0;
+		}
+
+		.line1 {
+			fill: none;
+			stroke: #dcc209;
+			stroke-width: 2px;
+		}
+
+		.line2 {
+			fill: none;
+			stroke: #8763ff;
+			stroke-width: 2px;
+		}
+
+		.line3 {
+			fill: none;
+			stroke: #5ff313;
+			stroke-width: 2px;
+		}
+
+		.circle1 {
+			fill: #dcc209;
+			stroke: #222;
+		}
+
+		.circle2 {
+			fill: #8763ff;
+			stroke: #222;
+		}
+
+		.circle3 {
+			fill: #5ff313;
+			stroke: #222;
+		}
+
+		.change-domain {
+			padding: 20px;
+		}
+		.change-domain button {
+			width: 130px;
+			padding: 20px;
+			font-size: 16px;
+			font-weight: bold;
+		}
+
+		.line1, .line2, .line3, .circle1, .circle2, .circle3 {
+			clip-path: url(#clip);
+		}
+	</style>
+</head>
+<body>
+<div id="chart"></div>
+<div class="change-domain">
+	<button onclick="changeDomain(0, 150)">0 — 150</button>
+	<button onclick="changeDomain(0, 75)">0 – 75</button>
+	<button onclick="changeDomain(75, 150)">75 — 150</button>
+	<button onclick="changeDomain(30, 60)">30 — 60</button>
+	<button onclick="changeDomain(-50, 200)">-50 - 200</button>
+</div>
+<script src='https://d3js.org/d3.v4.min.js'></script>
+<script>
+	'use strict';
+
+	const margin = {top: 20, right: 20, bottom: 30, left: 50};
+	const width = 960 - margin.left - margin.right;
+	const height = 500 - margin.top - margin.bottom;
+
+
+	const xScale = d3.scaleLinear().range([0, width]);
+	const yScale = d3.scaleLinear().range([height, 0]);
+
+	const valueLines = [1,2,3].map((numb) => {
+		const propertyName = 'property' + numb;
+		return d3.line()
+			.x(function(d) {return xScale(d.index);})
+			.y(function(d) {return yScale(d[propertyName]);});
+	})
+
+	const svg = d3.select('div#chart').append('svg')
+		.attr('class', 'chart')
+		.attr('width', width + margin.left + margin.right)
+		.attr('height', height + margin.top + margin.bottom)
+		.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+	svg.append('defs').append('clipPath')
+		.attr('id', 'clip')
+		.append('rect')
+		.attr('width', width)
+		.attr('height', height);
+
+	/**
+	 * Возвращает случайное целое число между min (включительно) и max (не включая max)
+	 * @param {Number} min Минимальное число
+	 * @param {Number} max Максимальное число
+	 * @returns {Number}
+	 */
+	function rand(min, max) {
+		return Math.floor(Math.random() * (max - min)) + min;
+	}
+
+	const MAX_VALUE = 150;
+	const data = [];
+	for(let i = 0; i < MAX_VALUE; i++) {
+		data[i] = {
+			index: i,
+			property1: rand(70, 100),
+			property2: rand(40, 65),
+			property3: rand(5, 35)
+		};
+	}
+
+	xScale.domain([0, MAX_VALUE]);
+	yScale.domain([0, d3.max(data, function(d) {return d.property1;})]);
+
+	const xAxis = d3.axisBottom(xScale);
+	svg.append('g')
+		.attr('class', 'axis axis__x')
+		.attr('transform', 'translate(0,' + height + ')')
+		.call(xAxis);
+
+	svg.append('g')
+		.attr('class', 'axis axis__y')
+		.call(d3.axisLeft(yScale)
+			.tickSize(-width)
+		);
+
+	// Добавим линии и точки на svg
+	valueLines.forEach((line, index) => {
+		const lineNumber = index + 1;
+		const propertyName = 'property' + lineNumber;
+
+		svg.append('path')
+			.data([data])
+			.attr('class', 'line' + lineNumber)
+			.attr('d', line);
+
+		svg.selectAll('dot')
+			.data(data)
+			.enter().append('circle')
+			.attr('class', 'circle' + lineNumber)
+			.attr('r', 3)
+			.attr('cx', function(d) {return xScale(d.index);})
+			.attr('cy', function(d) {return yScale(d[propertyName]);});
+	});
+
+	/**
+	 * Изменим домен
+	 * @param {Number} left Левая граница
+	 * @param {Number} right Правая граница
+	 */
+	function changeDomain(left, right) {
+		xScale.domain([left, right]);
+		const t = d3.transition().duration(1000);
+		// valueLines массив line
+		valueLines.forEach((line, index) => {
+			const lineNumber = index + 1;
+			// Работа с линиями
+			svg.select('.line' + lineNumber).transition(t).attr('d', line);
+			// Работа с точками
+			const dots = svg.selectAll('.circle' + lineNumber).data(data);
+			dots.transition(t)
+				.attr('cx', function(d) {return xScale(d.index);})
+		});
+		// Перерисовываем ось x
+		svg.select('.axis__x').transition(t).call(xAxis);
+	}
+</script>
+</body>
+</html>

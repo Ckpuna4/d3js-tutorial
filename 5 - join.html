@@ -1,0 +1,200 @@
+<!-- Анимация, работа с состояниями join -->
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>График</title>
+	<meta charset='utf-8'>
+	<style>
+		.chart {
+			background-color: #222;
+		}
+
+		.line {
+			fill: none;
+			stroke: #6c9af5;
+			stroke-width: 2px;
+		}
+
+		.tick > text {
+			fill: #919191;
+		}
+
+		.tick > line {
+			stroke: #404040;
+			font-size: pixrem(11);
+		}
+
+		path.domain {
+			stroke: #404040;
+		}
+
+		.axis path {
+			stroke-width: 0;
+		}
+
+		.circle {
+			fill: #6c9af5;
+			stroke: #222;
+			stroke-width: 1.5px;
+		}
+
+		/* Новое */
+		.created {
+			fill: #8ef56c;
+			opacity: 0;
+		}
+
+		.removed {
+			fill: #f56c6c;
+		}
+	</style>
+</head>
+<body>
+
+<script src='https://d3js.org/d3.v4.min.js'></script>
+<script>
+	'use strict';
+
+	const margin = {top: 20, right: 20, bottom: 30, left: 50};
+	const width = 960 - margin.left - margin.right;
+	const height = 500 - margin.top - margin.bottom;
+
+	const xScale = d3.scaleTime().range([0, width]);
+	const yScale = d3.scaleLinear().range([height, 0]);
+
+	const valueline = d3.line()
+		.x(function(d) {return xScale(d.date);})
+		.y(function(d) {return yScale(d.property);});
+
+	const svg = d3.select('body').append('svg')
+		.attr('class', 'chart')
+		.attr('width', width + margin.left + margin.right)
+		.attr('height', height + margin.top + margin.bottom)
+		.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+	const initialData = [
+		{date: '2-Sep-13', property: 1},
+		{date: '3-Sep-13', property: 2},
+		{date: '4-Sep-13', property: 3},
+		{date: '5-Sep-13', property: 4},
+		{date: '6-Sep-13', property: 5},
+		{date: '8-Sep-13', property: 6},
+		{date: '9-Sep-13', property: 9}
+	];
+
+	const changedData = [
+		{date: '4-Sep-13', property: 2},
+		{date: '5-Sep-13', property: 4},
+		{date: '6-Sep-13', property: 6},
+		{date: '8-Sep-13', property: 8},
+		{date: '9-Sep-13', property: 9}
+	];
+
+	const changedData2 = [
+		{date: '2-Sep-13', property: 1},
+		{date: '3-Sep-13', property: 4},
+		{date: '5-Sep-13', property: 5},
+		{date: '8-Sep-13', property: 3},
+		{date: '9-Sep-13', property: 9}
+	];
+
+	const changedData3 = [
+		{date: '5-Sep-13', property: 5},
+	];
+
+	const changedData4 = [
+		{date: '2-Sep-13', property: 1},
+		{date: '3-Sep-13', property: 4},
+		{date: '4-Sep-13', property: 2},
+		{date: '5-Sep-13', property: 5},
+		{date: '6-Sep-13', property: 7},
+		{date: '8-Sep-13', property: 3},
+		{date: '9-Sep-13', property: 9}
+	];
+
+	const parseTime = d3.timeParse('%d-%b-%y');
+
+	const datas = [initialData, changedData, changedData2, changedData3, changedData4];
+	datas.forEach(function(data) {
+		data.forEach(function(d) {
+			d.date = parseTime(d.date);
+			d.close = +d.property;
+		});
+	});
+
+
+	xScale.domain(d3.extent(initialData, function(d) {return d.date;}));
+	yScale.domain([0, d3.max(initialData, function(d) {return d.property;})]);
+
+	svg.append('g')
+		.attr('class', 'axis axis__x')
+		.attr('transform', 'translate(0,' + height + ')')
+		.call(d3.axisBottom(xScale));
+
+	svg.append('g')
+		.attr('class', 'axis axis__y')
+		.call(d3.axisLeft(yScale)
+			.tickSize(-width)
+		);
+	// Линию изначально без анимации отрисуем
+	svg.append('path')
+		.data([initialData])
+		.attr('class', 'line')
+		.attr('d', valueline);
+
+	function update(data) {
+		// анимация
+		const t = d3.transition().duration(1000);
+
+		svg.select('.line')
+			.data([data])
+			.transition(t)
+			.attr('d', valueline);
+
+		const dots = svg.selectAll('.circle').data(data);
+
+		// Enter
+		dots.enter()
+			.append('circle')
+			.attr('class', 'circle created') // Класс created для подкркаски
+			.attr('r', 10)
+			.attr('cx', function(d) {return xScale(d.date);})
+			.attr('cy', function(d) {return yScale(d.property);})
+			.transition(t)
+			.style('opacity', 1);
+
+
+		// Update. для update никакой конструкции нет она просто так пишется чейном
+		dots.attr('class', 'circle')
+			.transition(t)
+			.attr('cx', function(d) {return xScale(d.date);})
+			.attr('cy', function(d) {return yScale(d.property);});
+
+		// Exit
+		dots.exit()
+			.attr('class', 'circle removed') // Класс removed для подкраски
+			.transition(t)
+			.style('opacity', 0)
+			.remove();
+	};
+
+
+	// Изначальная отрисовка
+	update(initialData);
+
+	let i = 0;
+
+	// Зациклим изменение данных
+	d3.interval(function() {
+		i++;
+		if (i === datas.length) {
+			i = 0;
+		}
+		update(datas[i]);
+	}, 3000);
+
+</script>
+</body>
+</html>

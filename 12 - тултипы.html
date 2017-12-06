@@ -1,0 +1,175 @@
+<!-- Тултип-->
+<!-- bisector http://blockbuilder.org/alandunning/cfb7dcd7951826b9eacd54f0647f48d3 -->
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>График</title>
+	<meta charset='utf-8'>
+	<style>
+		.chart {
+			background-color: #222;
+		}
+
+		.tick > text {
+			fill: #919191;
+		}
+
+		.tick > line {
+			stroke: #404040;
+			font-size: pixrem(11);
+		}
+
+		path.domain {
+			stroke: #404040;
+		}
+
+		.axis path {
+			stroke-width: 0;
+		}
+
+		.line1 {
+			fill: none;
+			stroke: #dcc209;
+			stroke-width: 2px;
+		}
+
+		.line2 {
+			fill: none;
+			stroke: #8763ff;
+			stroke-width: 2px;
+		}
+
+		.line3 {
+			fill: none;
+			stroke: #5ff313;
+			stroke-width: 2px;
+		}
+
+		.circle1 {
+			fill: #dcc209;
+			stroke: #222;
+		}
+
+		.circle2 {
+			fill: #8763ff;
+			stroke: #222;
+		}
+
+		.circle3 {
+			fill: #5ff313;
+			stroke: #222;
+		}
+		div.tooltip {
+			position: absolute;
+			text-align: center;
+			width: 100px;
+			padding: 2px;
+			font-size: 15px;
+			box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+			background-color: #000;
+			color: #fff;
+			border: 0px;
+			border-radius: 4px;
+			pointer-events: none;
+			opacity: 0;
+		}
+	</style>
+</head>
+<body>
+
+<script src='https://d3js.org/d3.v4.min.js'></script>
+<script>
+	'use strict';
+	const margin = {top: 20, right: 20, bottom: 30, left: 50};
+	const width = 960 - margin.left - margin.right;
+	const height = 500 - margin.top - margin.bottom;
+
+
+	const xScale = d3.scaleLinear().range([0, width]);
+	const yScale = d3.scaleLinear().range([height, 0]);
+
+	const valueLines = [1,2,3].map((numb) => {
+		const propertyName = 'property' + numb;
+		return d3.line()
+			.x(function(d) {return xScale(d.index);})
+			.y(function(d) {return yScale(d[propertyName]);});
+	})
+
+	const svg = d3.select('body').append('svg')
+		.attr('class', 'chart')
+		.attr('width', width + margin.left + margin.right)
+		.attr('height', height + margin.top + margin.bottom)
+		.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+	/**
+	 * Возвращает случайное целое число между min (включительно) и max (не включая max)
+	 * @param {Number} min Минимальное число
+	 * @param {Number} max Максимальное число
+	 * @returns {Number}
+	 */
+	function rand(min, max) {
+		return Math.floor(Math.random() * (max - min)) + min;
+	}
+
+	const MAX_VALUE = 150;
+	const data = [];
+	for(let i = 0; i < MAX_VALUE; i++) {
+		data[i] = {
+			index: i,
+			property1: rand(70, 100),
+			property2: rand(40, 65),
+			property3: rand(5, 35)
+		};
+	}
+
+	xScale.domain([0, MAX_VALUE]);
+	yScale.domain([0, d3.max(data, function(d) {return d.property1;})]);
+
+	svg.append('g')
+		.attr('class', 'axis axis__x')
+		.attr('transform', 'translate(0,' + height + ')')
+		.call(d3.axisBottom(xScale));
+
+	svg.append('g')
+		.attr('class', 'axis axis__y')
+		.call(d3.axisLeft(yScale)
+			.tickSize(-width)
+		);
+
+	const tooltip = d3.select('body').append('div')
+		.attr('class', 'tooltip');
+
+	// Добавим линии и точки на svg
+	valueLines.forEach((line, index) => {
+		const lineNumber = index + 1;
+		const propertyName = 'property' + lineNumber;
+
+		svg.append('path')
+			.data([data])
+			.attr('class', 'line' + lineNumber)
+			.attr('d', line);
+
+		svg.selectAll('dot')
+			.data(data)
+			.enter().append('circle')
+			.attr('class', 'circle' + lineNumber)
+			.attr('r', 3)
+			.attr('cx', function(d) {return xScale(d.index);})
+			.attr('cy', function(d) {return yScale(d[propertyName]);})
+			.on('mouseover', function(d) {
+				tooltip.transition().duration(200)
+					.style('opacity', 0.9);
+				tooltip.html(`index: ${d.index}<br/>${propertyName}: ${d[propertyName]}`)
+					.style('left', (d3.event.pageX + 10) + 'px')
+					.style('top', (d3.event.pageY - 14) + 'px');
+			})
+			.on('mouseout', function(d) {
+				tooltip.transition().duration(500)
+					.style('opacity', 0);
+			});
+	});
+</script>
+</body>
+</html>
